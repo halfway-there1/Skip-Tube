@@ -52,12 +52,25 @@ async function runExtension() {
 
   // Check and skip segments periodically
   setInterval(() => {
-    checkAndSkipSegments(sponsorSegments);
+    if (!videoPlayer.paused) {
+      checkAndSkipSegments(sponsorSegments);
+    }
   }, 1000); // Check every second
 }
 
 // Run the extension
 runExtension();
+
+// Listen for changes in the URL
+let lastUrl = window.location.href;
+new MutationObserver(() => {
+  let url = window.location.href;
+  if (url !== lastUrl) {
+    lastUrl = url;
+    // URL has changed, run the extension again
+    runExtension();
+  }
+}).observe(document, { subtree: true, childList: true });
 
 /* videoPlayer.addEventListener('timeupdate', function () {
   console.log(this.currentTime);
