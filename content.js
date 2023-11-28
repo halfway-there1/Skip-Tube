@@ -1,3 +1,12 @@
+// Create a link element for the CSS file
+const linkElement = document.createElement('link');
+linkElement.rel = 'stylesheet';
+linkElement.type = 'text/css';
+linkElement.href = chrome.extension.getURL('content.css'); // Adjust the path if needed
+
+// Append the link element to the document head
+document.head.appendChild(linkElement);
+
 console.log('content.js is working 😀');
 
 const videoPlayer = document.querySelector('video');
@@ -28,15 +37,43 @@ function checkAndSkipSegments(segments) {
     if (currentTime >= startTime && currentTime < endTime) {
       // Skip to the end of the sponsor segment
       videoPlayer.currentTime = endTime;
-      console.log('Skipped sponsor segment:', { startTime, endTime });
+      const skippedSegment = {
+        start: formatTime(startTime),
+        end: formatTime(endTime),
+      };
+      console.log('Skipped sponsor segment:', skippedSegment);
       break;
     }
   }
 }
 
+function formatTime(seconds) {
+  let hours = Math.floor(seconds / 3600);
+  let minutes = Math.floor((seconds % 3600) / 60);
+  let secs = Math.floor(seconds % 60);
+
+  if (hours < 10) hours = '0' + hours;
+  if (minutes < 10) minutes = '0' + minutes;
+  if (secs < 10) secs = '0' + secs;
+
+  return `${hours}:${minutes}:${secs}`;
+}
+
+let intervalId;
 // Main function to run the extension
 async function runExtension() {
-  // Get the video ID from the YouTube URL
+  console.log('running extension');
+  const oldElement = document.getElementById('sponsorSegments-tribit');
+  if (oldElement) {
+    oldElement.remove();
+    console.log('removed old element 👴👴👴');
+  }
+
+  if (intervalId) {
+    console.log('cleared interval ⏲⏲');
+    clearInterval(intervalId);
+  }
+
   const videoID = new URL(window.location.href).searchParams.get('v');
   console.log(videoID, '🔗🔗🔗');
 
@@ -50,8 +87,48 @@ async function runExtension() {
 
   console.log(sponsorSegments, sponsorSegments.length, '😂😂');
 
+  // Create a <style> element
+  let style = document.createElement('style');
+  // Add your CSS to the <style> element
+  style.textContent = `
+    #sponsorSegments-tribit {
+      top: 8px;
+      position: absolute;
+      color: #ffffffdb;
+      left: 237px;
+    }
+    #sponsorSegments-tribit ul {
+      font-size: 12px;
+      list-style: none;
+    }
+  `;
+  // Append the <style> element to the <head> of the document
+  document.head.appendChild(style);
+
+  // if there are sponsor segments, show them to the user
+  if (sponsorSegments.length > 0) {
+    const sponsorSegmentsElement = document.createElement('div');
+    sponsorSegmentsElement.id = 'sponsorSegments-tribit';
+    sponsorSegmentsElement.innerHTML = `
+        <h2>Sponsor Segments ${sponsorSegments.length}</h2>
+        <ul>
+          ${sponsorSegments
+            .slice(0, 3)
+            .sort((a, b) => a.segment[0] - b.segment[0])
+            .map(
+              (segment) =>
+                `<li>${formatTime(segment.segment[0])} - ${formatTime(
+                  segment.segment[1]
+                )}</li>`
+            )
+            .join('')}
+        </ul>
+      `;
+    document.body.appendChild(sponsorSegmentsElement);
+  }
+
   // Check and skip segments periodically
-  setInterval(() => {
+  intervalId = setInterval(() => {
     if (!videoPlayer.paused) {
       checkAndSkipSegments(sponsorSegments);
     }
